@@ -72,8 +72,11 @@ To generate and explain a legal pit startegy:
 
 ## Testing
 
-To run the automated test suite:
+The project uses SWI-Prolog's native `plunit` framework. To run the full test suite from the repository root:
+
+```bash
 swipl -g run_tests -t halt tests/run_tests.pl
+```
 
 ## Documentation
 For detailed information about the project scope, data models, and rules, please refer to the docs/ directory.
