@@ -1,0 +1,14 @@
+
+*.qlf
+*.sav
+*.exe
+*.out
+
+.swipl-history
+*.log
+*.tmp
+*~
+
+.vscode/
+.DS_Store
+Thumbs.db
