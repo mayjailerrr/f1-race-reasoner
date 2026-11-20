@@ -12,6 +12,7 @@
 :- use_module('../src/facts').
 :- use_module('../src/rules_legality').
 :- use_module('../src/rules_penalties').
+:- use_module('../src/strategy').
 
 %% ---------------------------------------------------------------------
 %% Base Scenario Validation
@@ -83,7 +84,7 @@ test(unsafe_release_hamilton_fails) :-
 
 % Illegal overtake
 % Test 12: 
-test(illegal_overtake_under_sc, [nondet]) :-
+test(illegal_overtake_under_sc) :-
     illegal_overtake(hamilton, piastri, 7).
 
 % Test 13:
@@ -154,3 +155,65 @@ test(penalty_is_deterministic) :-
     P == five_second_penalty.
 
 :- end_tests(rules_penalties).
+
+%% ---------------------------------------------------------------------
+%% Strategy Module Validation
+%% ---------------------------------------------------------------------
+
+:- begin_tests(strategy).
+
+% Tire compound and age
+% Test 27: Compound pace data is correctly loaded from base_scenario.
+test(compound_pace_soft) :-
+    compound_pace(soft, 90.0, 0.8).
+
+% Test 28: First lap on a fresh tire has age 1 (Leclerc's hard on lap 6).
+test(tire_age_first_lap) :-
+    tire_age(leclerc, 6, 1).
+
+% Test 29: Mid-stint tire age is computed correctly (Leclerc on lap 10).
+test(tire_age_mid_stint) :-
+    tire_age(leclerc, 10, 5).
+
+% Test 30: Verstappen's first lap on medium.
+test(tire_age_verstappen_lap_1, [nondet]) :-
+    tire_age(verstappen, 1, 1).
+
+% Test 30.1: Verstappen's last lap on soft (stint 11-15, so lap 15 = age 5).
+test(tire_age_verstappen_last_lap) :-
+    tire_age(verstappen, 15, 5).
+
+% Test 31: Negative test - a lap outside any stint fails.
+test(tire_age_outside_stint_fails) :-
+    \+ tire_age(leclerc, 20, _).
+
+% Legal strategy generation
+% Test 32: Two different compounds form a legal strategy.
+test(legal_two_compounds) :-
+    once(legal_strategy(leclerc, [soft, hard])).
+
+% Test 33: Three mixed compounds form a legal strategy.
+test(legal_three_mixed) :-
+    once(legal_strategy(leclerc, [soft, hard, medium])).
+
+% Test 34: Same compound twice violates the FIA rule (NAF).
+test(illegal_all_same_two) :-
+    \+ legal_strategy(leclerc, [soft, soft]).
+
+% Test 35: Same compound three times violates the FIA rule (NAF).
+test(illegal_all_same_three) :-
+    \+ legal_strategy(leclerc, [medium, medium, medium]).
+
+% Test 36: A single stint violates the FIA rule.
+test(illegal_single_stint) :-
+    \+ legal_strategy(leclerc, [hard]).
+
+% Test 37: Four stints exceed max_stints(3).
+test(illegal_four_stints_exceeds_max) :-
+    \+ legal_strategy(leclerc, [soft, hard, soft, hard]).
+
+% Test 38: Enumeration - exactly 30 legal strategies (36 total - 6 all-same).
+test(count_legal_strategies) :-
+    findall(S, legal_strategy(leclerc, S), All),
+    length(All, N),
+    N =:= 30.

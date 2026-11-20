@@ -50,7 +50,7 @@ unsafe_release(Driver, Lap) :-
 illegal_overtake(Driver, OvertakenDriver, Lap) :-
     event(Lap, overtake, Driver, overtook(OvertakenDriver)),
     lap_status(Lap, Status),
-    ( Status == sc ; Status == vsc ).
+    memberchk(Status, [sc, vsc]).
 
 %% allowed_overtake(+Driver, +OvertakenDriver, +Lap) is semidet.
 %
