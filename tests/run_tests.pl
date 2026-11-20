@@ -13,6 +13,8 @@
 :- use_module('../src/rules_legality').
 :- use_module('../src/rules_penalties').
 :- use_module('../src/strategy').
+:- use_module('../src/explanation').
+:- use_module('../src/pretty_print').
 
 %% ---------------------------------------------------------------------
 %% Base Scenario Validation
@@ -276,3 +278,145 @@ test(best_strategy_is_legal, [nondet]) :-
     legal_strategy(verstappen, S).
 
 :- end_tests(strategy).
+
+%% ---------------------------------------------------------------------
+%% Explanation Module Validation
+%% ---------------------------------------------------------------------
+
+:- begin_tests(explanation).
+
+% Test 48: solve/2 produces a fact proof.
+test(solve_fact, [nondet]) :-
+    solve(driver(leclerc, ferrari),
+          proof(driver(leclerc, ferrari), fact)).
+
+% Test 49: solve/2 produces a rule proof with a nested body.
+test(solve_rule) :-
+    solve(exceeded_track_limits(leclerc, 3),
+          proof(exceeded_track_limits(leclerc, 3), rule(_))).
+
+% Test 50: solve/2 handles negation as failure.
+test(solve_negation) :-
+    solve(is_legal_lap(leclerc, 32),
+          proof(is_legal_lap(leclerc, 32),
+                rule(proof(\+ exceeded_track_limits(leclerc, 32),
+                            not_provable(exceeded_track_limits(leclerc, 32)))))).
+
+% Test 51: solve/2 fails for an unprovable goal.
+test(solve_unprovable) :-
+    \+ solve(exceeded_track_limits(leclerc, 32), _).
+
+% Test 52: solve/3 respects the depth budget.
+test(solve_depth_exhausted) :-
+    \+ solve(is_legal_lap(leclerc, 32), _, 1).
+
+:- end_tests(explanation).
+
+:- begin_tests(explain).
+
+% Test 53: explain/2 succeeds on a penalty rule and returns a tree.
+test(explain_penalty_success, [nondet]) :-
+    with_output_to(string(_), explain(penalty(leclerc, 3, P), E)),
+    P == five_second_penalty,
+    E = proof(_, _).
+
+% Test 54: explain/2 on an unprovable goal returns no_proof/1.
+test(explain_no_proof, [nondet]) :-
+    with_output_to(string(Out), explain(penalty(leclerc, 32, _), E)),
+    E = no_proof(_),
+    sub_string(Out, _, _, _, "No proof found").
+
+% Test 55: explain/2 works for legality rules.
+test(explain_illegal_overtake, [nondet]) :-
+    with_output_to(string(_),
+                   explain(illegal_overtake(hamilton, piastri, 7), E)),
+    E = proof(_, _).
+
+% Test 56: explain/2 works for strategy rules.
+test(explain_legal_strategy, [nondet]) :-
+    with_output_to(string(_),
+                   explain(legal_strategy(leclerc, [soft, hard]), E)),
+    E = proof(_, _).
+
+:- end_tests(explain).
+
+%% ---------------------------------------------------------------------
+%% Pretty Print Module Validation
+%% ---------------------------------------------------------------------
+
+:- begin_tests(pretty_print).
+
+test(pretty_print_fact, [nondet]) :-
+    solve(driver(leclerc, ferrari), Tree),
+    with_output_to(string(_), pretty_print(Tree)).
+
+test(pretty_print_rule_negation, [nondet]) :-
+    solve(is_legal_lap(leclerc, 32), Tree),
+    with_output_to(string(_), pretty_print(Tree)).
+
+test(pretty_print_conjunction, [nondet]) :-
+    solve((driver(leclerc, ferrari), team(ferrari)), Tree),
+    with_output_to(string(_), pretty_print(Tree)).
+
+test(pretty_print_with_indent, [nondet]) :-
+    solve(driver(leclerc, ferrari), Tree),
+    with_output_to(string(_), pretty_print(Tree, 2)).
+
+:- end_tests(pretty_print).
+
+%% ---------------------------------------------------------------------
+%% Meta-Iterpreter General Validation
+%% ---------------------------------------------------------------------
+
+:- begin_tests(metainterpreter_robustness).
+
+% R1: solve/2 returns a compound term, never a raw atom.
+test(solve_returns_compound, [nondet]) :-
+    solve(driver(leclerc, ferrari), Tree),
+    compound(Tree),
+    Tree = proof(_, _).
+
+% R2: solve/2 on a conjunction returns conj/2 inside proof/2.
+test(solve_returns_conj_term) :-
+    solve((driver(leclerc, ferrari), team(ferrari)), Tree),
+    Tree = proof(_, conj(_, _)).
+
+% R3: solve/3 with depth 0 fails cleanly (no crash, no exception).
+test(solve_depth_zero_fails_cleanly) :-
+    \+ solve(driver(leclerc, ferrari), _, 0).
+
+% R4: solve/2 handles a built-in predicate without throwing.
+test(solve_builtin_goal, [nondet]) :-
+    solve(atom(leclerc), Tree),
+    Tree = proof(atom(leclerc), builtin).
+
+% R5: explain/2 on a complex nested rule (penalty → illegal_overtake
+%     → event + lap_status) produces a rule tree without crashing.
+test(explain_complex_nested_rule, [nondet]) :-
+    with_output_to(string(_),
+                   explain(penalty(hamilton, 7, drive_through), E)),
+    E = proof(_, rule(_)).
+
+% R6: explain/2 on a conjunction returns a conj tree.
+test(explain_conjunction, [nondet]) :-
+    with_output_to(string(_),
+                   explain((driver(leclerc, ferrari), team(ferrari)), E)),
+    E = proof(_, conj(_, _)).
+
+% R7: explain/2 on a rule whose body contains NAF in the chain
+%     (fully_legal_lap → \+ illegal_action).
+test(explain_rule_with_naf, [nondet]) :-
+    with_output_to(string(_),
+                   explain(fully_legal_lap(verstappen, 1), E)),
+    E = proof(_, rule(_)).
+
+% R8: explain/2 on a well-defined but failing goal returns no_proof/1
+%     and does not crash.
+test(explain_no_proof_well_defined) :-
+    once(( with_output_to(string(Out),
+                          explain(exceeded_track_limits(leclerc, 32), E)),
+           E = no_proof(_),
+           sub_string(Out, _, _, _, "No proof found")
+         )).
+
+:- end_tests(metainterpreter_robustness).

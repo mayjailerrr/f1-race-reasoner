@@ -11,7 +11,10 @@
     tire_age/3,
     legal_strategy/2,
     strategy_time/3,
-    best_strategy/3
+    best_strategy/3,
+    generate_stints/1,
+    all_same_compound/1,
+    all_same/2
 ]).
 
 :- use_module('../data/base_scenario').
