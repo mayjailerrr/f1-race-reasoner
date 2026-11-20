@@ -217,3 +217,62 @@ test(count_legal_strategies) :-
     findall(S, legal_strategy(leclerc, S), All),
     length(All, N),
     N =:= 30.
+
+% Strategy time calculation
+% Test 39: [soft, hard] with 1 pit stop calculates the expected time.
+test(strategy_time_soft_hard) :-
+    strategy_time([soft, hard], 1, T),
+    abs(T - 1419.1) < 0.01.
+
+% Test 40: [hard, soft] with 1 pit stop is faster than [soft, hard]
+%          because the faster compound is used at the end of the race.
+test(strategy_time_hard_soft_faster) :-
+    strategy_time([soft, hard], 1, T1),
+    strategy_time([hard, soft], 1, T2),
+    T2 < T1.
+
+% Test 41: Three-stint strategy with 2 pit stops calculates the time.
+test(strategy_time_three_stints) :-
+    strategy_time([hard, soft, medium], 2, T),
+    abs(T - 1434.0) < 0.01.
+
+% Test 42: A single stint (0 pit stops) is a valid input for the time calc.
+test(strategy_time_single_stint) :-
+    strategy_time([soft], 0, T),
+    abs(T - 1434.0) < 0.01.
+
+% Test 43: Negative - PitStops argument inconsistent with Strategy length fails.
+test(strategy_time_pitstops_mismatch_fails) :-
+    \+ strategy_time([soft, hard], 2, _).
+
+% Test 44: TotalTime is always a number greater than zero.
+test(strategy_time_returns_number) :-
+    strategy_time([medium, hard], 1, T),
+    number(T),
+    T > 0.
+
+% Optimal strategy generation
+% Test 45: best_strategy/3 returns a numeric positive time.
+test(best_strategy_returns_number) :-
+    best_strategy(verstappen, _, T),
+    number(T),
+    T > 0.
+
+% Test 46: best_strategy/3 returns the minimum over all legal strategies.
+test(best_strategy_is_minimum) :-
+    findall(T,
+            ( legal_strategy(verstappen, S),
+              length(S, N),
+              P is N - 1,
+              strategy_time(S, P, T) ),
+            All),
+    min_list(All, Min),
+    best_strategy(verstappen, _, BestT),
+    abs(BestT - Min) < 0.01.
+
+% Test 47: the returned strategy is itself legal.
+test(best_strategy_is_legal, [nondet]) :-
+    best_strategy(verstappen, S, _),
+    legal_strategy(verstappen, S).
+
+:- end_tests(strategy).
